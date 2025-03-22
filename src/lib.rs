@@ -295,7 +295,7 @@ impl<I: WatchdogIo<IC>, IC> Watchdog<I, IC> {
                         }
                         continue;
                     }
-                    if self.state() == State::Ok {
+                    if packets > 1 {
                         packets = 0;
                         self.set_fault(FaultKind::OutOfOrder)?;
                         last_packet = Instant::now();
