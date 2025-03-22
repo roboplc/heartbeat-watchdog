@@ -1,0 +1,26 @@
+[package]
+name = "heartbeat-watchdog"
+version = "0.1.0"
+edition = "2021"
+authors = ["Serhij S. <div@altertech.com>"]
+license = "MIT"
+repository = "https://github.com/roboplc/heartbeat-watchdog"
+description = "A versatile heartbeat watchdog"
+readme = "README.md"
+keywords = ["watchdog", "embedded", "gpio"]
+autoexamples = false
+
+[package.metadata.docs.rs]
+features = ["gpio"]
+
+[package.metadata.playground]
+features = []
+
+[dependencies]
+gpio-cdev = { version = "0.6.0", optional = true }
+portable-atomic = { version = "1.11" }
+rtsc = { version = "0.3.15" }
+thiserror = "2.0"
+
+[features]
+gpio = ["dep:gpio-cdev"]
