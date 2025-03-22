@@ -24,3 +24,10 @@ thiserror = "2.0"
 
 [features]
 gpio = ["dep:gpio-cdev"]
+
+[[example]]
+name = "udp"
+
+[[example]]
+name = "gpio"
+required-features = ["gpio"]
