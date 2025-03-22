@@ -17,7 +17,7 @@ The crate provides out-of-the-box:
 
 - `UDP` socket heartbeat/watchdog
 
-- `GPIO` heartbeat/watchdog
+- `GPIO` heartbeat/watchdog (requires `gpio` feature)
 
 More communication methods can be added by implementing `io::WatchdogIo` and
 `Heart` traits.
