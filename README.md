@@ -16,17 +16,26 @@ on Linux only. No other platforms support is planned, except bare-metal.
 The crate provides out-of-the-box:
 
 - `UDP` socket heartbeat/watchdog
+
 - `GPIO` heartbeat/watchdog (Linux only)
 
-More communication methods can be added by implementing `io::WatchdogIo` and `Heart` traits.
+More communication methods can be added by implementing `io::WatchdogIo` and
+`Heart` traits.
+
+For high-level communication (e.g. TCP/IP) the edges are encoded as "+" for
+rising and "." for falling to simplify sniffing/debugging purposes.
 
 ## Error detection
 
 The following heartbeat errors are detected:
 
-- `Timeout` - no heartbeat received within the specified time
-- `Window` - heartbeat has been received out of the time window
-- `OutOfOrder` - heartbeat has been received out of order (e.g. for TCP/IP communication)
+- `Timeout` - no heartbeat edge change has been detected within the specified
+  time
+
+- `Window` - heartbeat edge change has been detected out of the time window
+
+- `OutOfOrder` - heartbeat edge change has been detected out of order (e.g. for
+  TCP/IP communication)
 
 ## TODO
 
