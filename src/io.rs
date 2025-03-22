@@ -1,6 +1,7 @@
 use crate::{Edge, Result, WatchdogConfig};
 
 /// Generic watchdog I/O trait
+#[allow(clippy::module_name_repetitions)]
 pub trait WatchdogIo<IC> {
     /// creates a new watchdog I/O
     fn create(config: &WatchdogConfig<IC>) -> Result<Self>
@@ -29,6 +30,7 @@ pub mod gpio {
 
     use super::WatchdogIo;
 
+    #[allow(clippy::module_name_repetitions)]
     /// GPIO client
     pub struct GpioHeart {
         handle: LineHandle,
@@ -62,6 +64,7 @@ pub mod gpio {
         }
     }
 
+    #[allow(clippy::module_name_repetitions)]
     /// GPIO watchdog I/O configuration
     #[derive(Debug, Clone)]
     pub struct GpioConfig {
@@ -148,6 +151,7 @@ pub mod udp {
     use super::WatchdogIo;
 
     /// UDP client
+    #[allow(clippy::module_name_repetitions)]
     pub struct UdpHeart {
         socket: UdpSocket,
         next: AtomicBool,
@@ -175,6 +179,7 @@ pub mod udp {
     }
 
     /// UDP watchdog I/O
+    #[allow(clippy::module_name_repetitions)]
     pub struct UdpIo {
         socket: UdpSocket,
     }
