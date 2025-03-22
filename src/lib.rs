@@ -224,10 +224,17 @@ impl<IC> WatchdogConfig<IC> {
     }
 }
 
-#[derive(Clone)]
 /// Watchdog
 pub struct Watchdog<I: WatchdogIo<IC>, IC> {
     inner: Arc<WatchDogInner<I, IC>>,
+}
+
+impl<I: WatchdogIo<IC>, IC> Clone for Watchdog<I, IC> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 struct WatchDogInner<I: WatchdogIo<IC>, IC> {
