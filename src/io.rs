@@ -1,17 +1,32 @@
+use core::future::Future;
+
 use crate::{Edge, Result, WatchdogConfig};
 
 /// Generic watchdog I/O trait
 #[allow(clippy::module_name_repetitions)]
 pub trait WatchdogIo<IC> {
     /// creates a new watchdog I/O
-    fn create(config: &WatchdogConfig<IC>) -> Result<Self>
+    fn create(_config: &WatchdogConfig<IC>) -> Result<Self>
     where
         Self: Sized;
     /// gets the next edge, the expected edge can be used to detect changes in case of an analogue
     /// source (e.g. GPIO)
-    fn get(&self, expected: Edge) -> Result<Edge>;
+    fn get(&self, _expected: Edge) -> Result<Edge>;
     /// clears the watchdog I/O, e.g. a socket buffer in case of TCP/IP
     fn clear(&self) -> Result<()>;
+}
+
+/// Generic watchdog I/O trait
+#[allow(clippy::module_name_repetitions)]
+pub trait WatchdogIoAsync<IC> {
+    /// creates a new watchdog I/O
+    fn create(config: &WatchdogConfig<IC>) -> impl Future<Output = Result<Self>> + Send
+    where
+        Self: Sized;
+    /// gets the next edge asynchronously, the expected edge can be used to detect changes in case
+    fn get(&self, _expected: Edge) -> impl Future<Output = Result<Edge>> + Send;
+    /// clears the watchdog I/O asynchronously
+    fn clear_async(&self) -> impl Future<Output = Result<()>> + Send;
 }
 
 #[cfg(feature = "gpio")]
@@ -139,6 +154,7 @@ pub mod gpio {
 }
 
 /// UDP communication
+#[cfg(feature = "std")]
 pub mod udp {
     use crate::{Edge, Error, Heart, Result, WatchdogConfig};
     use std::{

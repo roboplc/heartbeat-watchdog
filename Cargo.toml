@@ -11,19 +11,24 @@ keywords = ["watchdog", "embedded", "gpio"]
 autoexamples = false
 
 [package.metadata.docs.rs]
-features = ["gpio"]
+features = ["std", "gpio"]
 
 [package.metadata.playground]
-features = []
+features = ["std"]
 
 [dependencies]
-gpio-cdev = { version = "0.6.0", optional = true }
+async-io = { version = "2.4.0", optional = true }
+embassy-time = { version = "0.4.0", optional = true }
+gpio-cdev = { version = "0.6", optional = true }
 portable-atomic = { version = "1.11" }
-rtsc = { version = "0.3.15" }
+rtsc = { version = "0.3.15", optional = true }
 thiserror = "2.0"
 
 [features]
+default = ["std"]
 gpio = ["dep:gpio-cdev"]
+std = ["dep:rtsc", "dep:async-io"]
+embassy = ["dep:embassy-time"]
 
 [[example]]
 name = "udp"

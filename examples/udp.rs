@@ -24,8 +24,8 @@ fn main() {
     });
     for (i, _) in interval(Duration::from_millis(100)).enumerate() {
         heart.beat().unwrap();
-        if i > 0 && i % 10 == 0 {
-            if i % 20 == 0 {
+        if i > 0 && i % 100 == 0 {
+            if i % 200 == 0 {
                 println!("Timing out");
                 thread::sleep(Duration::from_millis(200));
             } else {
