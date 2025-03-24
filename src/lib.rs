@@ -65,6 +65,11 @@ pub type Result<T> = core::result::Result<T, Error>;
 type RawMutex = rtsc::pi::RawMutex;
 #[cfg(feature = "std")]
 type Condvar = rtsc::pi::Condvar;
+#[cfg(feature = "embassy")]
+type NoopMutex = embassy_sync::blocking_mutex::raw::NoopRawMutex;
+#[cfg(feature = "embassy")]
+/// Embassy state channel
+pub type EmbassyStateChannel = embassy_sync::channel::Channel<NoopMutex, StateEvent, 32>;
 
 /// State event
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -211,23 +216,21 @@ impl Range {
 
 /// Watchdog configuration
 #[derive(Debug, Clone)]
-pub struct WatchdogConfig<IC> {
+pub struct WatchdogConfig {
     interval: Duration,
     range: Range,
     warmup: Duration,
     min_beats: u32,
-    io_config: IC,
 }
 
-impl<IC> WatchdogConfig<IC> {
+impl WatchdogConfig {
     /// Create a new watchdog configuration
-    pub fn new(interval: Duration, io_config: IC) -> Self {
+    pub fn new(interval: Duration) -> Self {
         Self {
             interval,
             range: Range::Timeout(interval + interval / 10),
             warmup: interval * 2,
             min_beats: 2,
-            io_config,
         }
     }
     /// Set the range
@@ -261,22 +264,22 @@ impl<IC> WatchdogConfig<IC> {
     pub fn min_beats(&self) -> u32 {
         self.min_beats
     }
-    /// Get the I/O configuration
-    pub fn io_config(&self) -> &IC {
-        &self.io_config
+    /// Get timeout for I/O
+    pub fn io_timeout(&self) -> Duration {
+        self.interval + self.range.timeout()
     }
 }
 
 /// Watchdog
-pub struct Watchdog<I: WatchdogIo<IC>, IC> {
+pub struct Watchdog<I: WatchdogIo> {
     #[cfg(feature = "std")]
-    inner: Arc<WatchDogInner<I, IC>>,
+    inner: Arc<WatchDogInner<I>>,
     #[cfg(not(feature = "std"))]
-    inner: WatchDogInner<I, IC>,
+    inner: WatchDogInner<I>,
 }
 
 #[cfg(feature = "std")]
-impl<I: WatchdogIo<IC>, IC> Clone for Watchdog<I, IC> {
+impl<I: WatchdogIo> Clone for Watchdog<I> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -284,15 +287,15 @@ impl<I: WatchdogIo<IC>, IC> Clone for Watchdog<I, IC> {
     }
 }
 
-struct WatchDogProcessor<'a, IC> {
+struct WatchDogProcessor<'a> {
     packets: u32,
     next: Edge,
     last_packet: Instant,
-    config: &'a WatchdogConfig<IC>,
+    config: &'a WatchdogConfig,
 }
 
-impl<'a, IC> WatchDogProcessor<'a, IC> {
-    fn new(config: &'a WatchdogConfig<IC>) -> Self {
+impl<'a> WatchDogProcessor<'a> {
+    fn new(config: &'a WatchdogConfig) -> Self {
         Self {
             packets: 0,
             next: Edge::Rising,
@@ -341,36 +344,19 @@ impl<'a, IC> WatchDogProcessor<'a, IC> {
     }
 }
 
-struct WatchDogInner<I: WatchdogIo<IC>, IC> {
+struct WatchDogInner<I: WatchdogIo> {
     io: I,
     state: AtomicBool,
-    config: WatchdogConfig<IC>,
+    config: WatchdogConfig,
     #[cfg(feature = "std")]
     state_tx: policy_channel::Sender<StateEvent, RawMutex, Condvar>,
     #[cfg(feature = "std")]
     state_rx: policy_channel::Receiver<StateEvent, RawMutex, Condvar>,
 }
 
-impl<I: WatchdogIo<IC>, IC> Watchdog<I, IC> {
+impl<I: WatchdogIo> Watchdog<I> {
     /// Create a new watchdog
-    pub fn create(config: WatchdogConfig<IC>) -> Result<Self> {
-        #[cfg(feature = "std")]
-        let (state_tx, state_rx) = rtsc::policy_channel::bounded(1);
-        Ok(Self {
-            inner: WatchDogInner {
-                io: I::create(&config)?,
-                state: AtomicBool::new(State::Fault.into()),
-                config,
-                #[cfg(feature = "std")]
-                state_tx,
-                #[cfg(feature = "std")]
-                state_rx,
-            }
-            .into(),
-        })
-    }
-    /// Create a new watchdog with I/O
-    pub fn create_with_io(io: I, config: WatchdogConfig<IC>) -> Self {
+    pub fn new(config: WatchdogConfig, io: I) -> Self {
         #[cfg(feature = "std")]
         let (state_tx, state_rx) = rtsc::policy_channel::bounded(1);
         Self {
@@ -389,10 +375,6 @@ impl<I: WatchdogIo<IC>, IC> Watchdog<I, IC> {
     /// Get the current state
     pub fn state(&self) -> State {
         self.inner.state.load(Ordering::Relaxed).into()
-    }
-    /// Get a reference to the state atomic
-    pub fn state_ref(&self) -> &AtomicBool {
-        &self.inner.state
     }
     /// Get the state receiver channel
     #[cfg(feature = "std")]
@@ -448,43 +430,28 @@ impl<I: WatchdogIo<IC>, IC> Watchdog<I, IC> {
 }
 
 /// Watchdog
-pub struct WatchdogAsync<I: WatchdogIoAsync<IC>, IC> {
+pub struct WatchdogAsync<I: WatchdogIoAsync> {
     #[cfg(feature = "std")]
-    inner: Arc<WatchDogInnerAsync<I, IC>>,
+    inner: Arc<WatchDogInnerAsync<I>>,
     #[cfg(not(feature = "std"))]
-    inner: WatchDogInnerAsync<I, IC>,
+    inner: WatchDogInnerAsync<I>,
 }
 
-struct WatchDogInnerAsync<I: WatchdogIoAsync<IC>, IC> {
+struct WatchDogInnerAsync<I: WatchdogIoAsync> {
     io: I,
     state: AtomicBool,
-    config: WatchdogConfig<IC>,
+    config: WatchdogConfig,
     #[cfg(feature = "std")]
     state_tx: policy_channel_async::Sender<StateEvent>,
     #[cfg(feature = "std")]
     state_rx: policy_channel_async::Receiver<StateEvent>,
+    #[cfg(feature = "embassy")]
+    embassy_state_tx: Option<embassy_sync::channel::Sender<'static, NoopMutex, StateEvent, 32>>,
 }
 
-impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
+impl<I: WatchdogIoAsync> WatchdogAsync<I> {
     /// Create a new watchdog
-    pub async fn create(config: WatchdogConfig<IC>) -> Result<Self> {
-        #[cfg(feature = "std")]
-        let (state_tx, state_rx) = rtsc::policy_channel_async::bounded(1);
-        Ok(Self {
-            inner: WatchDogInnerAsync {
-                io: I::create(&config).await?,
-                state: AtomicBool::new(State::Fault.into()),
-                config,
-                #[cfg(feature = "std")]
-                state_tx,
-                #[cfg(feature = "std")]
-                state_rx,
-            }
-            .into(),
-        })
-    }
-    /// Create a new watchdog with I/O
-    pub fn create_with_io(io: I, config: WatchdogConfig<IC>) -> Self {
+    pub fn new(config: WatchdogConfig, io: I) -> Self {
         #[cfg(feature = "std")]
         let (state_tx, state_rx) = rtsc::policy_channel_async::bounded(1);
         Self {
@@ -496,6 +463,8 @@ impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
                 state_tx,
                 #[cfg(feature = "std")]
                 state_rx,
+                #[cfg(feature = "embassy")]
+                embassy_state_tx: None,
             }
             .into(),
         }
@@ -509,9 +478,13 @@ impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
     pub fn state_rx(&self) -> policy_channel_async::Receiver<StateEvent> {
         self.inner.state_rx.clone()
     }
-    /// Get a reference to the state atomic
-    pub fn state_ref(&self) -> &AtomicBool {
-        &self.inner.state
+    #[cfg(all(feature = "embassy", not(feature = "std")))]
+    /// Set the state sender channel
+    pub fn set_state_tx(
+        &mut self,
+        tx: embassy_sync::channel::Sender<'static, NoopMutex, StateEvent, 32>,
+    ) {
+        self.inner.embassy_state_tx = Some(tx);
     }
     /// Run the watchdog
     pub async fn run(&self) -> Result<()> {
@@ -539,6 +512,10 @@ impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
             .send(StateEvent::Ok)
             .await
             .map_err(Error::failed)?;
+        #[cfg(feature = "embassy")]
+        if let Some(tx) = &self.inner.embassy_state_tx {
+            tx.send(StateEvent::Ok).await;
+        }
         Ok(())
     }
     async fn set_fault(&self, kind: FaultKind) -> Result<()> {
@@ -552,13 +529,17 @@ impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
             .send(StateEvent::Fault(kind))
             .await
             .map_err(Error::failed)?;
+        #[cfg(feature = "embassy")]
+        if let Some(tx) = &self.inner.embassy_state_tx {
+            tx.send(StateEvent::Fault(kind)).await;
+        }
         self.warmup().await?;
         Ok(())
     }
     async fn warmup(&self) -> Result<()> {
         #[cfg(feature = "std")]
         async_io::Timer::after(self.inner.config.warmup).await;
-        #[cfg(feature = "embassy")]
+        #[cfg(all(feature = "embassy", not(feature = "std")))]
         embassy_time::Timer::after(embassy_time::Duration::from_micros(
             self.inner.config.warmup.as_micros().try_into().unwrap(),
         ))

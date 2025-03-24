@@ -6,16 +6,15 @@ use heartbeat_watchdog::{
 };
 use rtsc::time::interval;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let heart = GpioHeart::create("/dev/gpiochip0", 17).unwrap();
-    let watchdog: Watchdog<Gpio, _> = Watchdog::create(
-        WatchdogConfig::new(
-            Duration::from_millis(100),
-            GpioConfig::new("/dev/gpiochip0", 27),
-        )
-        .with_range(Range::Window(Duration::from_millis(10))),
-    )
-    .unwrap();
+    let watchdog_config = WatchdogConfig::new(Duration::from_millis(100))
+        .with_range(Range::Window(Duration::from_millis(10)));
+    let watchdog_io = Gpio::create(
+        &GpioConfig::new("/dev/gpiochip0", 27, Duration::from_millis(2)),
+        watchdog_config.io_timeout(),
+    )?;
+    let watchdog = Watchdog::new(watchdog_config, watchdog_io);
     let state_rx = watchdog.state_rx();
     thread::spawn(move || {
         for e in state_rx {
@@ -38,4 +37,5 @@ fn main() {
             }
         }
     }
+    Ok(())
 }

@@ -1,14 +1,10 @@
 use core::future::Future;
 
-use crate::{Edge, Result, WatchdogConfig};
+use crate::{Edge, Result};
 
 /// Generic watchdog I/O trait
 #[allow(clippy::module_name_repetitions)]
-pub trait WatchdogIo<IC> {
-    /// creates a new watchdog I/O
-    fn create(_config: &WatchdogConfig<IC>) -> Result<Self>
-    where
-        Self: Sized;
+pub trait WatchdogIo {
     /// gets the next edge, the expected edge can be used to detect changes in case of an analogue
     /// source (e.g. GPIO)
     fn get(&self, _expected: Edge) -> Result<Edge>;
@@ -18,11 +14,7 @@ pub trait WatchdogIo<IC> {
 
 /// Generic watchdog I/O trait
 #[allow(clippy::module_name_repetitions)]
-pub trait WatchdogIoAsync<IC> {
-    /// creates a new watchdog I/O
-    fn create(config: &WatchdogConfig<IC>) -> impl Future<Output = Result<Self>> + Send
-    where
-        Self: Sized;
+pub trait WatchdogIoAsync {
     /// gets the next edge asynchronously, the expected edge can be used to detect changes in case
     fn get(&self, _expected: Edge) -> impl Future<Output = Result<Edge>> + Send;
     /// clears the watchdog I/O asynchronously
@@ -85,23 +77,17 @@ pub mod gpio {
     pub struct GpioConfig {
         chip: PathBuf,
         offset: u32,
-        pull_interval: Option<Duration>,
+        pull_interval: Duration,
     }
 
     impl GpioConfig {
         /// creates a new GPIO watchdog I/O configuration
-        pub fn new<P: AsRef<Path>>(chip: P, offset: u32) -> Self {
+        pub fn new<P: AsRef<Path>>(chip: P, offset: u32, pull_interval: Duration) -> Self {
             Self {
                 chip: chip.as_ref().to_path_buf(),
                 offset,
-                pull_interval: None,
+                pull_interval
             }
-        }
-        /// Sets the pull interval, in case if not specified - 1/10 of the timeout/window
-        /// duration is used
-        pub fn with_pull_interval(mut self, pull_interval: Duration) -> Self {
-            self.pull_interval = Some(pull_interval);
-            self
         }
     }
 
@@ -112,27 +98,23 @@ pub mod gpio {
         pull_interval: Duration,
     }
 
-    impl WatchdogIo<GpioConfig> for Gpio {
-        fn create(config: &crate::WatchdogConfig<GpioConfig>) -> Result<Self> {
-            let mut chip = Chip::new(&config.io_config.chip).map_err(Error::failed)?;
-            let line = chip
-                .get_line(config.io_config.offset)
-                .map_err(Error::failed)?;
+    impl Gpio {
+        /// creates a new GPIO watchdog I/O
+        pub fn create(config: &GpioConfig, timeout: Duration) -> Result<Self> {
+            let mut chip = Chip::new(&config.chip).map_err(Error::failed)?;
+            let line = chip.get_line(config.offset).map_err(Error::failed)?;
             let handle = line
                 .request(LineRequestFlags::INPUT, 0, "gpio-watchdog")
                 .map_err(Error::failed)?;
-            let timeout = config.interval + config.range.timeout();
-            let pull_interval = config
-                .io_config
-                .pull_interval
-                .unwrap_or(config.range.timeout() / 10);
             Ok(Self {
                 handle,
                 timeout,
-                pull_interval,
+                pull_interval: config.pull_interval,
             })
         }
+    }
 
+    impl WatchdogIo for Gpio {
         fn get(&self, expected: crate::Edge) -> Result<crate::Edge> {
             let now = Instant::now();
             for _ in interval(self.pull_interval) {
@@ -156,7 +138,8 @@ pub mod gpio {
 /// UDP communication
 #[cfg(feature = "std")]
 pub mod udp {
-    use crate::{Edge, Error, Heart, Result, WatchdogConfig};
+    use crate::{Edge, Error, Heart, Result};
+    use core::time::Duration;
     use std::{
         net::{ToSocketAddrs, UdpSocket},
         thread,
@@ -200,16 +183,19 @@ pub mod udp {
         socket: UdpSocket,
     }
 
-    impl<IC: ToSocketAddrs> WatchdogIo<IC> for UdpIo {
-        fn create(config: &WatchdogConfig<IC>) -> Result<Self>
+    impl UdpIo {
+        /// creates a new UDP watchdog I/O
+        pub fn create<A: ToSocketAddrs>(addr: A, timeout: Duration) -> Result<Self>
         where
             Self: Sized,
         {
-            let socket = UdpSocket::bind(&config.io_config)?;
-            socket.set_read_timeout(Some(config.interval + config.range.timeout()))?;
+            let socket = UdpSocket::bind(addr)?;
+            socket.set_read_timeout(Some(timeout))?;
             Ok(Self { socket })
         }
+    }
 
+    impl WatchdogIo for UdpIo {
         fn get(&self, _expected: Edge) -> Result<Edge> {
             let mut buf = [0];
             while self.socket.recv(&mut buf)? == 0 {}

@@ -18,6 +18,7 @@ features = ["std"]
 
 [dependencies]
 async-io = { version = "2.4.0", optional = true }
+embassy-sync = { version = "0.6.2", optional = true }
 embassy-time = { version = "0.4.0", optional = true }
 gpio-cdev = { version = "0.6", optional = true }
 portable-atomic = { version = "1.11" }
@@ -28,7 +29,8 @@ thiserror = { version = "2.0", default-features = false }
 default = ["std"]
 gpio = ["dep:gpio-cdev"]
 std = ["dep:rtsc", "dep:async-io", "thiserror/std", "portable-atomic/std"]
-embassy = ["dep:embassy-time"]
+embassy = ["dep:embassy-time", "dep:embassy-sync"]
+embassy-sync = ["dep:embassy-sync"]
 
 [[example]]
 name = "udp"
