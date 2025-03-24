@@ -369,6 +369,23 @@ impl<I: WatchdogIo<IC>, IC> Watchdog<I, IC> {
             .into(),
         })
     }
+    /// Create a new watchdog with I/O
+    pub fn create_with_io(io: I, config: WatchdogConfig<IC>) -> Self {
+        #[cfg(feature = "std")]
+        let (state_tx, state_rx) = rtsc::policy_channel::bounded(1);
+        Self {
+            inner: WatchDogInner {
+                io,
+                state: AtomicBool::new(State::Fault.into()),
+                config,
+                #[cfg(feature = "std")]
+                state_tx,
+                #[cfg(feature = "std")]
+                state_rx,
+            }
+            .into(),
+        }
+    }
     /// Get the current state
     pub fn state(&self) -> State {
         self.inner.state.load(Ordering::Relaxed).into()
@@ -466,6 +483,23 @@ impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
             .into(),
         })
     }
+    /// Create a new watchdog with I/O
+    pub fn create_with_io(io: I, config: WatchdogConfig<IC>) -> Self {
+        #[cfg(feature = "std")]
+        let (state_tx, state_rx) = rtsc::policy_channel_async::bounded(1);
+        Self {
+            inner: WatchDogInnerAsync {
+                io,
+                state: AtomicBool::new(State::Fault.into()),
+                config,
+                #[cfg(feature = "std")]
+                state_tx,
+                #[cfg(feature = "std")]
+                state_rx,
+            }
+            .into(),
+        }
+    }
     /// Get the current state
     pub fn state(&self) -> State {
         self.inner.state.load(Ordering::Relaxed).into()
@@ -529,7 +563,7 @@ impl<I: WatchdogIoAsync<IC>, IC> WatchdogAsync<I, IC> {
             self.inner.config.warmup.as_micros().try_into().unwrap(),
         ))
         .await;
-        self.inner.io.clear_async().await?;
+        self.inner.io.clear().await?;
         Ok(())
     }
 }

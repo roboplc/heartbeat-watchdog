@@ -26,7 +26,7 @@ pub trait WatchdogIoAsync<IC> {
     /// gets the next edge asynchronously, the expected edge can be used to detect changes in case
     fn get(&self, _expected: Edge) -> impl Future<Output = Result<Edge>> + Send;
     /// clears the watchdog I/O asynchronously
-    fn clear_async(&self) -> impl Future<Output = Result<()>> + Send;
+    fn clear(&self) -> impl Future<Output = Result<()>> + Send;
 }
 
 #[cfg(feature = "gpio")]
