@@ -1,3 +1,13 @@
+//! Watchdog example for STM32F103
+//!
+//! This example demonstrates the usage of the `heartbeat_watchdog` with an external heartbeat
+//! signal, where the board acts as a watchdog.
+//!
+//! Pins:
+//!
+//! - PB12: Output LED, blinks every 1s to indicate the board is alive
+//! - PB13: Fault LED, lights up when the watchdog detects a fault
+//! - PB14: Input, the external heartbeat signal
 #![no_std]
 #![no_main]
 
