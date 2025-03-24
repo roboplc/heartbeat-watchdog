@@ -25,6 +25,11 @@ More communication methods can be added by implementing `io::WatchdogIo` and
 For high-level communication (e.g. TCP/IP) the edges are encoded as "+" for
 rising and "." for falling to simplify sniffing/debugging purposes.
 
+## Bare-metal
+
+The crate has got integration with [embassy](https://embassy.dev) for `no_std`
+targets. Requires disabling defaults and enabling `embassy` feature.
+
 ## Error detection
 
 The following heartbeat errors are detected:
@@ -36,7 +41,3 @@ The following heartbeat errors are detected:
 
 - `OutOfOrder` - heartbeat edge change has been detected out of order (e.g. for
   TCP/IP communication)
-
-## TODO
-
-- `nostd` support
