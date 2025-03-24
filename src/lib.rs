@@ -80,6 +80,15 @@ pub enum StateEvent {
     Ok,
 }
 
+impl defmt::Format for StateEvent {
+    fn format(&self, f: defmt::Formatter) {
+        match self {
+            StateEvent::Fault(kind) => defmt::write!(f, "Fault({})", kind),
+            StateEvent::Ok => defmt::write!(f, "Ok"),
+        }
+    }
+}
+
 #[cfg(feature = "std")]
 impl rtsc::data_policy::DataDeliveryPolicy for StateEvent {
     fn delivery_policy(&self) -> rtsc::data_policy::DeliveryPolicy {
@@ -92,6 +101,15 @@ impl From<StateEvent> for State {
         match e {
             StateEvent::Ok => State::Ok,
             StateEvent::Fault(_) => State::Fault,
+        }
+    }
+}
+
+impl defmt::Format for State {
+    fn format(&self, f: defmt::Formatter) {
+        match self {
+            State::Fault => defmt::write!(f, "Fault"),
+            State::Ok => defmt::write!(f, "Ok"),
         }
     }
 }
@@ -202,6 +220,17 @@ pub enum FaultKind {
     Window,
     /// Out-of-order edge (e.g. for TCP/IP packets)
     OutOfOrder,
+}
+
+impl defmt::Format for FaultKind {
+    fn format(&self, f: defmt::Formatter) {
+        match self {
+            FaultKind::Initial => defmt::write!(f, "Initial"),
+            FaultKind::Timeout => defmt::write!(f, "Timeout"),
+            FaultKind::Window => defmt::write!(f, "Window"),
+            FaultKind::OutOfOrder => defmt::write!(f, "OutOfOrder"),
+        }
+    }
 }
 
 impl Range {

@@ -18,6 +18,7 @@ features = ["std"]
 
 [dependencies]
 async-io = { version = "2.4.0", optional = true }
+defmt = "0.3"
 embassy-sync = { version = "0.6.2", optional = true }
 embassy-time = { version = "0.4.0", optional = true }
 gpio-cdev = { version = "0.6", optional = true }
