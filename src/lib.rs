@@ -295,7 +295,11 @@ impl WatchdogConfig {
     }
     /// Get timeout for I/O
     pub fn io_timeout(&self) -> Duration {
-        self.interval + self.range.timeout()
+        match self.range {
+            Range::Timeout(_) => self.interval + self.range.timeout(),
+            // allow flexible timeouts for windows (returns max)
+            Range::Window(_) => self.interval + self.range.timeout() * 2,
+        }
     }
 }
 
