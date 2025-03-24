@@ -8,6 +8,8 @@
 A versatile watchdog and heartbeat traits for various monitoring purposes in
 mission-critical systems (processes, single threads etc).
 
+Generates and analyses pulses (edges) to detect errors in the monitored system.
+
 The crate is a part of the [RoboPLC](https://www.roboplc.com) project and works
 on Linux only. No other platforms support is planned, except bare-metal.
 
