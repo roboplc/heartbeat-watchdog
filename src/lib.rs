@@ -356,6 +356,7 @@ struct WatchDogInner<I: WatchdogIo> {
 
 impl<I: WatchdogIo> Watchdog<I> {
     /// Create a new watchdog
+    #[allow(clippy::useless_conversion)]
     pub fn new(config: WatchdogConfig, io: I) -> Self {
         #[cfg(feature = "std")]
         let (state_tx, state_rx) = rtsc::policy_channel::bounded(1);
@@ -396,6 +397,7 @@ impl<I: WatchdogIo> Watchdog<I> {
             }
         }
     }
+    #[allow(clippy::unnecessary_wraps)]
     fn set_ok(&self) -> Result<()> {
         if self.state() == State::Ok {
             return Ok(());
@@ -451,6 +453,7 @@ struct WatchDogInnerAsync<I: WatchdogIoAsync> {
 
 impl<I: WatchdogIoAsync> WatchdogAsync<I> {
     /// Create a new watchdog
+    #[allow(clippy::useless_conversion)]
     pub fn new(config: WatchdogConfig, io: I) -> Self {
         #[cfg(feature = "std")]
         let (state_tx, state_rx) = rtsc::policy_channel_async::bounded(1);

@@ -34,7 +34,8 @@ embassy-sync = ["dep:embassy-sync"]
 
 [[example]]
 name = "udp"
+required-features = ["std"]
 
 [[example]]
 name = "gpio"
-required-features = ["gpio"]
+required-features = ["std", "gpio"]

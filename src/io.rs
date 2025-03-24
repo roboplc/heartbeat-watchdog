@@ -86,7 +86,7 @@ pub mod gpio {
             Self {
                 chip: chip.as_ref().to_path_buf(),
                 offset,
-                pull_interval
+                pull_interval,
             }
         }
     }
